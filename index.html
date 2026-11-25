@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SmartHire AI</title><style>
+:root{--navy:#14243a;--blue:#286bd6;--bg:#f4f7fb;--ink:#172337;--muted:#68778d;--line:#e3e9f1}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,Arial}
+header{background:var(--navy);color:white;padding:22px max(18px,calc((100% - 1160px)/2));display:flex;justify-content:space-between;align-items:center}
+h1{font-size:21px;margin:0}.sub{color:#c6d3e4;font-size:12px}.tag{background:#24513f;color:#c8f2dc;border-radius:30px;padding:5px 10px;font-size:11px}
+main{max-width:1160px;margin:24px auto;padding:0 18px}.notice{background:#fff6e5;border:1px solid #ecd6a5;color:#76500e;padding:13px;border-radius:12px;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:17px 0}.card{background:white;border:1px solid var(--line);border-radius:15px;padding:18px}.card h2{font-size:17px;margin:0 0 12px}
+.drop{border:2px dashed #a9bed9;border-radius:13px;padding:28px;text-align:center;background:#f8fbff}.drop input{max-width:100%;margin-top:14px}
+button,.btn{border:0;background:var(--blue);color:white;padding:10px 14px;border-radius:9px;font-weight:650;cursor:pointer;text-decoration:none;display:inline-block}
+button.secondary,.btn.secondary{background:#edf3fc;color:#2458a8;border:1px solid #d9e5f8}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.muted{color:var(--muted);font-size:13px}table{width:100%;border-collapse:collapse;font-size:13px;min-width:850px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);background:#fafbfd}
+.tablewrap{overflow:auto}.empty{text-align:center;color:var(--muted);padding:25px}.status{background:#fff1d8;color:#835400;padding:4px 8px;border-radius:20px;font-size:11px;font-weight:700}
+footer{max-width:1160px;margin:24px auto;padding:0 18px 30px;color:var(--muted);font-size:12px}
+@media(max-width:750px){.grid{grid-template-columns:1fr}header{gap:10px}}
+</style></head><body>
+<header><div><h1>✦ SmartHire AI</h1><div class="sub">Resume intake & structured review workspace</div></div><span class="tag">DEPLOYABLE STARTER</span></header>
+<main>
+<div class="notice"><b>Important:</b> This starter extracts text and fields from uploaded resumes, but does not make hiring decisions. All extracted information must be checked by a human. Do not use this with real applicant data until authentication, encryption, retention/deletion controls, access logging and a privacy notice are added.</div>
+<div class="grid">
+<div class="card"><div class="muted">Resumes processed</div><div id="total" style="font-size:30px;font-weight:750">0</div></div>
+<div class="card"><div class="muted">Ready for human review</div><div id="review" style="font-size:30px;font-weight:750">0</div></div>
+<div class="card"><div class="muted">Current status</div><div style="font-size:19px;font-weight:700;margin-top:10px">Review required</div></div>
+</div>
+<div class="card">
+<h2>1. Upload resumes</h2><p class="muted">Select multiple PDF or DOCX files, or a ZIP containing supported files.</p>
+<div class="drop" id="drop"><b>Choose resume files</b><div class="muted">PDF · DOCX · ZIP · TXT</div><input id="files" type="file" multiple accept=".pdf,.docx,.zip,.txt"></div>
+<div class="row" style="margin-top:13px"><span id="message" class="muted">No files selected.</span><button id="upload">Upload and extract</button></div>
+</div>
+<div class="card" style="margin-top:16px">
+<div class="row"><div><h2>2. Extracted candidate information</h2><div class="muted">No ranking or automatic rejection. Verify every field against the original document.</div></div><div class="row"><a class="btn secondary" href="/api/export.csv">Export CSV</a><button class="secondary" id="refresh">Refresh</button><button class="secondary" id="clear">Clear session data</button></div></div>
+<div class="tablewrap"><table><thead><tr><th>Resume</th><th>Email</th><th>Phone</th><th>10th %</th><th>12th %</th><th>CGPA</th><th>Skills found</th><th>Languages found</th><th>Review</th></tr></thead><tbody id="rows"><tr><td colspan="9" class="empty">No resumes uploaded yet.</td></tr></tbody></table></div>
+</div>
+</main><footer>SmartHire AI · Starter build · Uploaded resume content is held in server memory only and is cleared when the server restarts or when you clear the session.</footer>
+<script>
+const $=id=>document.getElementById(id);let selected=[];
+$('files').addEventListener('change',e=>{selected=[...e.target.files];$('message').textContent=selected.length+' file(s) selected';});
+$('drop').addEventListener('dragover',e=>{e.preventDefault();$('drop').style.borderColor='#286bd6'});
+$('drop').addEventListener('drop',e=>{e.preventDefault();selected=[...e.dataTransfer.files];$('message').textContent=selected.length+' file(s) selected';});
+$('upload').onclick=async()=>{if(!selected.length){$('message').textContent='Please choose files first.';return}
+const fd=new FormData();selected.forEach(f=>fd.append('files',f));$('upload').disabled=true;$('message').textContent='Processing files…';
+try{const r=await fetch('/api/upload',{method:'POST',body:fd});const data=await r.json();if(!r.ok)throw Error(data.detail||'Upload failed');$('message').textContent=data.processed+' resume(s) processed.';selected=[];$('files').value='';await load();}
+catch(e){$('message').textContent=e.message;}finally{$('upload').disabled=false;}};
+async function load(){const r=await fetch('/api/candidates');const d=await r.json();const a=d.candidates||[];$('total').textContent=a.length;$('review').textContent=a.length;
+$('rows').innerHTML=a.length?a.map(c=>`<tr><td>${esc(c.filename)}</td><td>${esc(c.email||'Not found')}</td><td>${esc(c.phone||'Not found')}</td><td>${esc(c.tenth_percent||'Not found')}</td><td>${esc(c.twelfth_percent||'Not found')}</td><td>${esc(c.graduation_cgpa||'Not found')}</td><td>${esc(c.skills||'Not found')}</td><td>${esc(c.languages||'Not found')}</td><td><span class="status">Human review</span></td></tr>`).join(''):'<tr><td colspan="9" class="empty">No resumes uploaded yet.</td></tr>';}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+$('refresh').onclick=load;$('clear').onclick=async()=>{if(confirm('Clear all candidate records in this running session?')){await fetch('/api/candidates',{method:'DELETE'});await load();$('message').textContent='Session data cleared.';}};load();
+</script></body></html>
